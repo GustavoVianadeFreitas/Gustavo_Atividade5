@@ -1,286 +1,154 @@
 ---
-title: "Atividade 4 - R Markdown"
-author: "Gustavo Viana de Freitas"
-date: "23/09/2021"
-output: html_document
+title: "Atividade Final - Ciência Colaborativa"
+author: "Gustavo Viana de Freitas - PPGERN UENF"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+    html_document:
+       highlight: textmate
+       includes:
+         in_header: "cabecalho.html"
+       theme: flatly
+       number_sections: yes
+       toc: yes
+       toc_float:
+         collapsed: yes
+         smooth_scroll: no
 ---
 
-# Relatório R Markdown Atividade 3 - Acesso a Banco de Dados Abertos    
-# Disciplina **Ferramentas em Ciência Colaborativa e Banco de dados**   
+<style>
+body {
+text-align: justify}
+</style>
 
-### Programa de Pós-Graduação em Ecologia e Recursos Naturais - PPGERN  
-### Universidade Estadual do Norte Fluminense Darcy Ribeiro  
+# Atividade final - Ferramentas em ciência colaborativa e bancos de dados abertos  
+
+## Contexto  
   
-  
-#### Contexto  
-  
-A Atividade 3 consistiu em extrair dados de uma espécie da base de dados do GBIF.  
-O roteiro da atividade 3 pode ser visto no [Repositório da Disciplina](https://cammcordeiro.github.io/ciencia_colab/index.html).  
+A atividade final consistiu em alimentar um repositório criado durante o período da disciplina (20-09-2021 a 24-09-2021), com atividades realizadas em aula e posteriormente. Além disso, consistiu na criação de um novo repositório, a parte dos que foram criados durante as aulas e criar uma página github com outro banco de dados, de autoria própria ou disponíveis em plataformas de banco de dados. Os roteiros mais detalhados da disciplina podem ser vistos no [Repositório da Disciplina](https://cammcordeiro.github.io/ciencia_colab/index.html).  
 
-A espécie escolhida foi a bromélia *Alcantarea imperialis* (Carrière) Harms.
+Link do novo repositório criado [GustavoVianadeFreitas](https://github.com/GustavoVianadeFreitas/Gustavo_ciencia_colab)
 
-O passo a passo abaixo refere-se a todo o procedimento de extração e observação dos dados.
+As atividades 4 e 5 foram reproduzidas novamente com dados próprios no intuito de alimetar o novo repositório criado. Os dados se referem a uma atividade de campo que buscou relacionar a abundância de líquens crostosos em uma região de floresta ombrófila da Floresta Atlântica em duas condições de superfície arbórea (superfície lisa e rugosa) e microclimática (borda e interior florestal). O objetivo da coleta desses dados foi verificar a influência das condições microclimátias e da superfície arbórea na abundância desses líquens. A hipótese era de que troncos não rugosos e condições de borda permitirão maior abundância de morfotipos crostosos, devido sua forte aderência ao substrato e ausência de córtex, tendo preferência por ambienteis mais estressantes como a borda florestal.
 
-1. Carregando todos os pacotes necessários  
-    i) Utilizando a função `` require ``.  
+<center>
 
+![Líquen Crostoso](C:/Users/gusta/Documents/2. MESTRADO/8. Disciplinas Mestrado/Ecologia de Campo/Projeto Final da Disciplina/crostoso.png){height=350}
+<center>
 
-```{r Carregamento de Pacotes, message=FALSE, warning=FALSE}
-require(tidyverse)
-require(rgbif)
-require(ggmap)
-require(maps)
-require(mapdata)
-require(scrubr)
-require(CoordinateCleaner)
+## Análises Estatísticas e Discussão
+
+1. Primeiramente, os dados foram importados para observação
+```{r}
+liquens<-read.table("liquenes.txt", h=T)
+head(liquens)
 ```
 
-2. Importando os dados da espécie da base do GBIF e verificando suas características
-    i) Utilizando a função `` occ_data ``.
+2. Após o carregamento dos dados, observamos a distribuição das variáveis contínuas
+```{r, message=FALSE, warning=FALSE}
+hist(liquens$crostoso)
+abline(v=27.00, col="red") #Mediana
+abline(v=28.49, col="blue") #Média
+summary(liquens)
 
-```{r Importação e Observação dos dados}
-alcantarea_gbif <- occ_data(scientificName = "Alcantarea imperialis", 
-                      hasCoordinate = TRUE,
-                      hasGeospatialIssue=FALSE)
-
-head(alcantarea_gbif, 10) 
-
-# Checando Dimensões
-dim(alcantarea_gbif )
-dim(alcantarea_gbif$data)
-
-# Checando Campos
-alcantarea_gbif$data %>% names
+### Os dados são assimétricos, mas por questões de facilitar a reprodução das atividades, os dados serão considerados sem transformação.
 ```
 
-3. Observando os problemas reportados a partir da extração desses dados (issues)
 
-```{r Problemas Reportados}
-### Problemas reportados
-gbif_issues()
+3. Nessa etapa, criamos um modelo de anova two-way 
 
-issues_gbif<- alcantarea_gbif$data$issues %>%
-  #unique() %>% 
-  strsplit(.,"[,]") %>%
-  unlist() %>%
-  unique()
-### Gerou e separou vários issues
+Os dados foram submetidos à uma Análise de Variância two-way (ANOVA two-way), uma vez que a finalidade desse trabalho foi avaliar a abundância de morfotipos crostosos (variável dependente) em duas condições específicas: a superfície dos troncos e a condição microclimática (duas variáveis independentes). 
+```{r, message=FALSE, warning=FALSE}
+### Testamos se há uma interação das variáveis categóricas com a variável contínua
+liquens_ANOVA_twoway<-aov(crostoso~substrato*condicao, data=liquens)
+anova(liquens_ANOVA_twoway)
 
-## Ver quais problemas foram baixados no dataset da espécie em questão.
-gbif_issues() %>% head %>%
-  data.frame() %>% 
-  filter(code %in% issues_gbif)
-
-gbif_issues() %>%
-  data.frame() %>% 
-  filter(code %in% issues_gbif)
+#Aqui, mostrando o gráfico de interação.
+interaction.plot(liquens$substrato, liquens$condicao,liquens$crostoso,
+                 ylab="Talos Crostosos",
+                 xlab="Superfície Arbórea",
+                 main="Interação entre a superfície e condição microclimática")
 ```
 
-4. Selecionando Campos de Interesse nos dados
+Há um efeito de interação entre as variáveis categóricas, porém com um valor de p marginal. Entretanto, optou-se neste trabalho não avaliar as variáveis com a interação, uma vez que o valor de p está muito próximo do erro de assumido e a variável condição microclimática não ter apresentado suporte estatístico 
 
-```{r Seleção de descritores de interesse}
-## Campos de Interesse
-alcantarea_gbif1 <- alcantarea_gbif$data %>%
-  dplyr::select(scientificName, acceptedScientificName, decimalLatitude, decimalLongitude,
-                issues, basisOfRecord, occurrenceStatus, rightsHolder, 
-                datasetName, recordedBy, country) 
+4. Nesta etapa, o modelo de anova é testado quanto aos pressupostos da análise
+```{r, message=FALSE, warning=FALSE}
+#Para observação das premissas diagnósticas do modelo (linearidade, normalidade, homogeneidade e leverage)
+par(mfrow=c(2,2))
+plot(liquens_ANOVA_twoway)
+# Pelos gráficos diagnósticos, talvez seja necessário ajustar o modelo.
+par(mfrow=c(1,1))
+require(MASS)
+boxcox(liquens_ANOVA_twoway, lambda=c(from=0, to=2, by=0.5))
+# De acordo com a função boxcox, é notável que o intervalo de confiança engloba o valor de 0.5, referente a função raiz quadrada.
+### Aqui, temos duas questões. Mesmo possuindo significância para a interação, o valor de p é marginal e muito próximo do erro assumido. Dessa forma, optei além de ajustar o modelo, retirar o efeito da interação.
 
-alcantarea_gbif1 <- alcantarea_gbif1 %>% 
-  distinct() 
+### Assim, simplificarei o modelo retirando a raiz quadrada e colocando o efeito aditivo das variáveis.
 
-
-# checar niveis dos fatores
-lapply(alcantarea_gbif1, unique)
 ```
 
-5. Observando os problemas reportados a partir da extração desses dados
+5. Simplificando e ajustando o modelo de anova
+```{r, message=FALSE, warning=FALSE}
+liquens_ANOVA_twoway_sqrt_simplificada<-aov(sqrt(crostoso)~substrato+condicao, data=liquens)
+anova(liquens_ANOVA_twoway_sqrt_simplificada)
+#Após simplificação do modelo e retirada da interação, a anova two way virou uma anova-oneway 
+par(mfrow=c(2,2))
+plot(liquens_ANOVA_twoway_sqrt_simplificada)
+par(mfrow=c(1,1))
+boxcox(liquens_ANOVA_twoway_sqrt_simplificada)
 
-```{r Problemas Não Reportados}
-### Problemas não reportados
-# Investigar niveis suspeitos, caso essa espécie fosse distribuída em várias localidades
-## 
-alcantarea_gbif1 %>% 
-  distinct(country) %>% 
-  pull()
-
-# Só tem no Brasil mesmo... aqui no caso da Dory, tinha vários países de ocorrencia que não tem a spp
-alcantarea_gbif1 %>%
-  group_by(country) %>% 
-  summarise(occ = length(scientificName)) %>% 
-  ggplot(aes(occ, y=country)) +
-  geom_bar(stat = 'identity') 
-
-### OBS: deu uma barra grande pq só tem o Brasil mesmo.
-
-# Fonte das regioes erradas
-# Não se aplicaria aqui, já que somente há uma localidade
-alcantarea_gbif1 %>% 
-  filter(country %in% c("Brazil")) %>% 
-  distinct(datasetName)
-
-## O script acima gerou um NA, resolvi retirá-lo
-alcantarea_gbif1 %>% 
-  filter(datasetName %in% c("NA"))
-# Filtrar todas do dataset suspeito
-alcantarea_gbif_ok <- alcantarea_gbif1 %>% 
-  filter(!datasetName %in% c("NA"))
+### Modelo validado.
 ```
 
-6. Checando os pontos de ocorrência da espécie pela confecção de um mapa
 
-```{r Checagem de Pontos de Ocorrência}
-World<-map_data('world')
-Brazil <- map_data('world', region='Brazil')
-# checar pontos
-ggplot() +
-  geom_polygon(data = Brazil, aes(x = long, y = lat, group = group)) +
-  coord_fixed() +
-  theme_classic() +
-  geom_point(data = alcantarea_gbif_ok, aes(x = decimalLongitude, y = decimalLatitude), color = "red") +
-  labs(x = "Longitude", y = "Latitude", title = expression(italic("Alcantarea imperialis")))
-
-
-# Checar profundidade - Não se aplicou no meu porque não tenho uma variável contínua de interesse.
-# A maioria está com NAs como elevação. No exemplo da aula, a variável foi depth (profundidade)
+6. Após o modelo ser validado, aplicamos um teste de Tukey para entender as contribuições das variáveis categóricas na abundância dos líquens.
+```{r}
+TukeyHSD(liquens_ANOVA_twoway_sqrt_simplificada)
+### Confirmamos a influência do substrato na abundância de líquens crostosos em uma área de floresta ombrófila da floresta atlântica.
 ```
 
-**Observação**: Nesse relatório não foi reportado nada relacionado ao OBIS, uma vez que esse banco de dados é mais aplicado para dados marinhos. Portanto, todo o script e passo a passo relacionado ao OBIS não foi reportado aqui. Pacotes relacionados ao obis também não foram carregados e utlizados.    
-  
-7. Mapeando ocorrências e gerando planilha de dados de interesse
 
-```{r Mapeamento das Ocorrências}
-all_data <- bind_rows(alcantarea_gbif_ok %>% 
-                        mutate(repo = paste0("gbif", row.names(.)))) %>%
-  column_to_rownames("repo") %>% 
-  dplyr::select(scientificName, acceptedScientificName, decimalLatitude, decimalLongitude,
-                occurrenceStatus, country) %>% 
-  distinct() %>% 
-  rownames_to_column("occ") %>% 
-  separate(col = "occ", into = c("datasetName", "rn"), sep = 4) %>%
-  mutate(scientificName = "Alcantarea imperialis") %>% 
-  dplyr::select(-rn)
-
-# mapear ocorrencias
-ggplot() +
-  geom_polygon(data = Brazil, aes(x = long, y = lat, group = group)) +
-  coord_fixed() +
-  theme_classic() +
-  geom_point(data = alcantarea_gbif_ok, aes(x = decimalLongitude, y = decimalLatitude, color = datasetName)) +
-  #theme(legend.title = element_blank()) +
-  labs(x = "Longitude", y = "Latitude", title = expression(italic("Alcantarea imperialis")))
-
-## Aqui, caso eu quisesse gerar a planilha com as informações selecionadas
-write.csv(all_data, "Alcantarea_imperialis_info_gbif.csv", row.names = FALSE)
-```
-
-7. Parte extra: em caso de classificar automaticamente os pontos
-
-```{r Classificação Automática dos Pontos}
-# funcao para classificar ocorrencias suspeitas
-flag_outlier <- function(df, species){
-  
-  # funcao para classificar ocorrencias suspeitas
-  # baseada no calculo do centroide de todas ocorrencias
-  # indica como 'check' as ocorrencias que tem distancias até o centroide
-  # acima do 90th quantil (default) das distancias calculadas
-  
-  dados <- df %>% 
-    dplyr::filter(scientificName == species); 
-  
-  dados2 <- geosphere::distVincentyEllipsoid(
-    dados %>%
-      summarise(centr_lon = median(decimalLongitude),
-                centr_lat = median(decimalLatitude)),
-    dados %>% 
-      dplyr::select(decimalLongitude, decimalLatitude)
-  ) %>% 
-    bind_cols(dados) %>% 
-    rename(dist_centroid = '...1') %>% 
-    mutate(flag = ifelse(dist_centroid < quantile(dist_centroid, probs = 0.9), "OK",
-                         ifelse(dist_centroid >= quantile(dist_centroid, probs = 0.90) & dist_centroid < quantile(dist_centroid, probs = 0.95), "check > Q90",
-                                ifelse(dist_centroid >= quantile(dist_centroid, probs = 0.95), "check > Q95", "OK"))))
-  
-  # mutate(flag = ifelse(dist_centroid > quantile(dist_centroid, probs = prob), "check", "OK"))
-  
-  print(dados2)
-  
-}
-
-#Distâncias acima do 90° percentil, são consideradas como dados suspeitos
-
-
-# Classificar ocorrências
-marcados <- alcantarea_gbif$data %>% 
-  data.frame() %>% 
-  dplyr::select(scientificName, decimalLongitude, decimalLatitude, datasetName) %>% 
-  distinct() %>% 
-  flag_outlier(., "Alcantarea imperialis (Carrière) Harms")
-
-
-# Mapa
-ggplot() +
-  geom_polygon(data = Brazil, aes(x = long, y = lat, group = group)) +
-  coord_fixed() +
-  theme_classic() +
-  geom_point(data = marcados, 
-             aes(x = decimalLongitude, y = decimalLatitude, 
-                 color = flag)) +
-  theme(legend.title = element_blank()) +
-  labs(x = "longitude", y = "latitude", 
-       title = expression(italic("Alcantarea imperialis")))
-
-
-### Duas ocorrências estão suspeitas e de fato, pelo conhecimento da spp, a que está mais
-### suspeita é o ponto marcado na região centro-oeste/norte.
-### O outro ponto é o rosa, que se encontra no sul. 
-### A espécie tem distribuição RJ/ES/SP
-```
-
-8. Checando essas ocorrências suspeitas e plotando com o pacote ``scrubr``
-
-```{r Ocorrências Suspeitas}
-# Usando os dados com flag
-data_scrubr <- marcados %>% 
-  dframe() %>% 
-  coord_impossible() %>% 
-  coord_incomplete() %>% 
-  coord_unlikely() %>% 
-  dedup()
-
-
-# Mapa
-ggplot() +
-  geom_polygon(data = Brazil, aes(x = long, y = lat, group = group)) +
-  coord_fixed() +
-  theme_classic() +
-  geom_point(data = data_scrubr, 
-             aes(x = decimalLongitude, y = decimalLatitude), 
-             color = "red") +
-  geom_point(data = marcados %>% 
-               filter(flag != "OK"), 
-             aes(x = decimalLongitude, y = decimalLatitude), 
-             color = "blue", shape = 3) +
-  theme(legend.title = element_blank()) +
-  labs(x = "Longitude", y = "Latitude", 
-       title = expression(italic("Alcantarea imperialis")))
-
-### Duas ocorrências suspeitas marcadas com uma cruz e retirou as duplicadas
-```
-
-9. Checando as coordenadas comparando com as coordenadas do GBIF
-
+7. Visualizando o conjunto de dados graficamente
 ```{r Checagem das Coordenadas}
-#Vai checar algumas coordenadas e comparar com as coordenadas do gbif
-flags <-
-  clean_coordinates(
-    x = marcados,
-    lon = "decimalLongitude",
-    lat = "decimalLatitude",
-    species = "scientificName",
-    tests = c("equal", "gbif",
-              "zeros", "seas")
-  )
-## Não encontrou problemas como foi explicado na aula da disciplina
+boxplot(sqrt(crostoso)~substrato, data=liquens,
+        main="Abundância de líquens crostosos e superfície arbórea",
+        xlab="Superfície do tronco",
+        ylab="raiz[Abundância de talos crostosos (N)]",
+        names=c("Troncos Não Rugosos", "Troncos Rugosos"),
+        col=c("yellow", "gray"),
+        notch=T,
+        cex.lab=1.2)
+
 ```
 
 
+Notamos que há uma maior quantidade de líquens crostosos na superíficie arbórea não rugosa. O menor número de indivíduos em troncos rugosos pode estar associado à competição a organismos como as briófitas ou aos líquens com outras morfologias de talo (folhosos e filamentosos). Líquens e briófitas pode ser competidores por espaço e recursos em troncos, especialmente aqueles com características cruciais para o seu desenvolvimento, como áreas sombreadas e de alta umidade, além das características do substrato disponível (HAWKSWORTH, 2002; MARCIENTE, 2010).
+
+A falta de interação da condição microclimática com a superfície do tronco, bem como a própria ação da primeira com o número de indivíduos pode estar relacionada com a alta plasticidade de líquens crostosos em ambientes tropicais, bem como a condição de borda e interior florestal agir, na verdade como uma mesma condição. Lakatos et al., (2006), em estudos com quatro espécies de líquens crostosos mostraram que este morfotipo de talo está bem adaptado a condições microclimáticas consideradas desfavoráveis e/ou favoráveis em florestas tropicais, uma vez que conseguem explorar recursos de maneira eficiente e semelhante, tanto em condição de baixa luminosidade como em condição de alta luminosidade, por exemplo. Os autores atribuem à filogenia das espécies a forma como cada uma irá utilizar dos recursos do que a própria condição ambiental propriamente dita, sendo a morfologia do talo adaptada à ambas as condições de luz nesse caso. Isso pode estar relacionado com o estudo em questão, mostrando que mesmo para a borda florestal como para o interior, o número de indivíduos é o mesmo. Estes resultados também são corroborados por DANTAS, (2016) que também não encontrou diferença na composição de líquens crostosos entre o gradiente borda-interior e que apenas a luminosidade foi o fator que influenciou a dinâmica populacional dessas associações, já que a condição microclimática leva em consideração outros fatores como umidade, temperatura, déficit de pressão de vapor.
+
+Um estudo realizado por Pardow et al., (2010), mostrou que líquens crostosos tem preferência pela condição borda florestal, já que encontram nesse local melhor sobrevivência. Dessa forma, é importante ressaltar, que apesar da interação entre a condição microclimática e superfície do tronco ter sido encontrada, o N amostral dos dados do estudo podem ter mascarado a influência da variável ambiental na abundância dos líquens. 
+
+
+
+## Conclusão
+
+Com base nas análises desse estudo, foi possível perceber que existe maior número de indivíduos em superfícies de troncos não rugosos com relação à troncos rugosos, porém a condição ambiental não permitiu distinguir indivíduos de talos crostosos. Conclui-se que a rugosidade do tronco é o fator mais determinante da abundância de líquens do que a condição microclimática em uma floresta ombrófila densa, sendo a hipótese do estudo, parcialmente rejeitada.
+
+
+## Referências Bibliográficas
+
+* DANTAS, J. O. Existe um efeito de borda na Caatinga? Evidência de comunidades
+de liquens em Poço Verde, Sergipe. Dissertação de Mestrado. Universidade Federal de
+Sergipe, Programa de Pós-Graduação em Ecologia e Conservação. São Cristóvão, SE. 2016. 183p. Disponível em:  <https://ri.ufs.br/bitstream/riufs/4468/1/JACIELE_OLIVEIRA_DANTAS.pdf>
+
+* HAWKSWORTH. D. L. Lichens. Encyclopedia Of Life Sciences. 2002. Disponível em: <https://www.onacademic.com/detail/journal_1000045622449599_3285.html>
+
+* LAKATOS, M., et al. Functional characteristics of corticolous lichens in the understory of a tropical lowland rain forest. New Phytologist 172: p. 679-695. 2006. Disponível em: <https://nph.onlinelibrary.wiley.com/doi/10.1111/j.1469-8137.2006.01871.x>
+
+* MARCIENTE, R. A ocupação de troncos de sub-bosque por briófitas e liquens é
+determinada pela orientação geográfica de vertentes? Instituto Nacional de
+Pesquisas Ambientais – INPA. Ecologia da Floresta Amazônica – Curso de Campo – 2010.
+
+* PARDOW, A. et al. Morphological, photosynthetic and water relations traits underpin the contrasting success of two tropical lichen groups at the interior and edge of forest fragments. Division of Experimental Ecology, Department of Biology, University of Kaiserslautern. Kaiserslautern, Germany. AoB plants: v. 10. 2010. Disponível em: <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2965038/>
+
+* R CORE TEAM. R: A language and enviroment for statistical computing. R Foundation for Statistical Computing, Vienna, Austria. 2021. <https://www.r-project.org/>
